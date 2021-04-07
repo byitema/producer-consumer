@@ -3,6 +3,10 @@ import string
 import threading
 import queue
 import time
+import argparse
+
+
+capacity = 10
 
 
 def randstr() -> str:
@@ -29,9 +33,11 @@ def producer(q: queue.Queue, cond: threading.Condition, n: int):
         time.sleep(n)
         cond.acquire()
         try:
-            q.put(randstr())
-            print("String produced by Producer with id: " + str(threading.get_ident()))
-            cond.notify()
+            if q.qsize() < capacity:
+                q.put(randstr())
+                print("String produced by Producer with id: " + str(threading.get_ident()))
+                print("Queue size now: " + str(q.qsize()))
+                cond.notify()
         finally:
             cond.release()
 
@@ -57,11 +63,15 @@ def consumer(q: queue.Queue, cond: threading.Condition):
 if __name__ == '__main__':
     q = queue.Queue()
     cond = threading.Condition()
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--producers", help="number of producers", type=int)
+    parser.add_argument("--consumers", help="number of consumers", type=int)
+    parser.add_argument("--time", help="time (seconds) for producer to wait", type=int)
+    args = parser.parse_args()
 
-    threading.Thread(target=producer, args=(q,cond, 2,)).start()
-    threading.Thread(target=producer, args=(q,cond, 3,)).start()
-    threading.Thread(target=producer, args=(q,cond, 5,)).start()
-    threading.Thread(target=producer, args=(q,cond, 6,)).start()
-
-    threading.Thread(target=consumer, args=(q,cond,)).start()
-    threading.Thread(target=consumer, args=(q,cond,)).start()
+    for i in range(args.producers):
+        threading.Thread(target=producer, args=(q,cond, args.time,)).start()
+    
+    for i in range(args.consumers):
+        threading.Thread(target=consumer, args=(q,cond,)).start()
