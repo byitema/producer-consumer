@@ -6,7 +6,7 @@ import time
 import argparse
 
 
-capacity = 10
+capacity = 5
 
 
 def randstr() -> str:
@@ -32,23 +32,25 @@ def producer(q: queue.Queue, cond: threading.Condition, n: int):
     while True:
         time.sleep(n)
         cond.acquire()
-        try:
-            if q.qsize() < capacity:
-                q.put(randstr())
-                print("String produced by Producer with id: " + str(threading.get_ident()))
-                print("Queue size now: " + str(q.qsize()))
-                cond.notify()
-        finally:
-            cond.release()
+
+        if q.qsize() < capacity:
+            q.put(randstr())
+            print("String produced by Producer with id: " + str(threading.get_ident()))
+            print("Queue size now: " + str(q.qsize()))
+            cond.notify()
+        else:
+            cond.wait()
+
+        cond.release()
 
 
 def consumer(q: queue.Queue, cond: threading.Condition):
     cond.acquire()
     while True:
-        try:
+        if q.qsize() > 0:
             tmp = count_unique(q.get_nowait())
             print("Answer: " + str(tmp[1]) + " for string: " + tmp[0])
-        except:
+        else:
             value = cond.wait()
             if value:
                 print("Notification for Consumer with id: " + str(threading.get_ident()))
